@@ -1,0 +1,21 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ae-reportes
+  annotations:
+    haproxy.router.openshift.io/timeout: "3m"
+  labels:
+    app: ae-reportes
+    app.kubernetes.io/component: ae-reportes
+    app.kubernetes.io/instance: ae-reportes
+    app.kubernetes.io/name: ae-reportes
+    app.kubernetes.io/part-of: ae-app
+    app.openshift.io/runtime: ae-reportes
+spec:
+  host: ae-reportes-${NAMESPACE}.${DOMAIN}
+  to:
+    kind: Service
+    name: ae-reportes
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Allow

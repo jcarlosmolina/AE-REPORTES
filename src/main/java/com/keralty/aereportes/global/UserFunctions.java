@@ -1,4 +1,12 @@
 package com.keralty.aereportes.global;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.List;
+
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.slf4j.LoggerFactory;
 
 import com.keralty.aereportes.persistence.AreaMedica;
 import com.keralty.aereportes.persistence.Asesor;
@@ -29,7 +37,15 @@ import com.keralty.aereportes.persistence.SolicitudNovedad;
 import com.keralty.aereportes.persistence.TipoDireccion;
 import com.keralty.aereportes.persistence.TipoIdentificacion;
 import com.keralty.aereportes.persistence.Usuario;
+import com.keralty.aereportes.persistence.Valor;
+import com.keralty.aereportes.repository.AsesorJpaRepository;
+import com.keralty.aereportes.repository.FuncionarioJpaRepository;
 import com.keralty.aereportes.service.AbstractService;
+import com.keralty.aereportes.sqlutils.SQLPopulation;
+import com.keralty.aereportes.sqlutils.SQLWhereComparison;
+import com.keralty.aereportes.sqlutils.SQLWhereConjunction;
+import com.keralty.aereportes.sqlutils.SQLWhereOperandLiteral;
+import com.keralty.aereportes.sqlutils.SQLWhereOperandPathAttribute;
 import com.keralty.aereportes.viewmodel.userfunctions.FuActualizarPersonaCORERequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuAnadirTextoRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuBuscarDocGestorNumIdRequest;
@@ -37,13 +53,12 @@ import com.keralty.aereportes.viewmodel.userfunctions.FuBuscarDocGestorSolicitud
 import com.keralty.aereportes.viewmodel.userfunctions.FuCalcularIMCRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuCalcularIMCUsuarioRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuCallSPgetsemaforoareamedRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FuCallSPgetsemaforograbadornovRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuCallSPgetsemaforograbadorRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FuCallSPgetsemaforograbadornovRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuCallSPgetusuareamedRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FuCallSPgetusugrabadornovRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuCallSPgetusugrabadorRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FuCallSPgetusugrabadornovRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuCheckRegimenSubsidiadoRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FuconcatenarConNulosRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuContieneCharEspecialRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuContratoExentoDocSolRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuCrearPersonaCORERequest;
@@ -53,67 +68,75 @@ import com.keralty.aereportes.viewmodel.userfunctions.FuEnviarEmailRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuEnviarSMSRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuEstadoSolicitudRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuExisteContratoExentoFIngresoRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FuformarListaValoresPreguntaRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FuformarMsgErrorUsrSinDocsRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuFormarTextoObservacionesRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuGenerarReporteOracleRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetAgenteRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetAreaMedicaPorIdRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetAsesorRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FuGetCodigoPersonaCORERequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuGetCodTarifaProdPlanAnyoRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetDepartamentoCLRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FuGetCodigoPersonaCORERequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuGetDirResidenciaPersonaRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoBeneficiarioCOREPorNombreRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoBeneficiarioCORERequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoCivilRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoContratoPorNombreRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoContratoRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoPersonaRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FuGetFechaFinVigenciaUsuarioRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuGetFInicioPlanVolRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetFuncionarioPorIdRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetFuncionarioPorLDAPRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetGrupoAsocRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FuGetFechaFinVigenciaUsuarioRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuGetIdDocIdentidadEnGestorRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetListaErroresRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetMunicipioCLRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuGetNombreAsesorRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuGetNombreFuncionarioRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetPaisRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetPlanPorCLRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetPlantillaEmailRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetPrioridadRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetProductoPorCLRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuGetReporteSolicitudRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetRolRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetSolicitudByNumeroRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetSolicitudNovedadByNumRadicadoRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuGetTextoAvisoFirmaRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetTipoIdentificacionRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetValorParametroConfRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FugetValorTarifaSegunEdadRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuObtenerDocumentoRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuSoloLetrasRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuSoloNumerosRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuStrONullRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FusubstringTextRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuSustituirParamsEnURLRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuValidarDominioIncompatiblesRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuValidarEmailRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuValidarNombreRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuValidarTelefonoCelularRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuValidarTelefonoFijoRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FuconcatenarConNulosRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FuformarListaValoresPreguntaRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FuformarMsgErrorUsrSinDocsRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetAgenteRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetAreaMedicaPorIdRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetAsesorRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetDepartamentoCLRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoBeneficiarioCOREPorNombreRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoBeneficiarioCORERequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoCivilRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoContratoPorNombreRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoContratoRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetEstadoPersonaRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetFuncionarioPorIdRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetFuncionarioPorLDAPRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetGrupoAsocRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetListaErroresRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetMunicipioCLRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetPaisRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetPlanPorCLRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetPlantillaEmailRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetPrioridadRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetProductoPorCLRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetRolRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetSolicitudByNumeroRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetSolicitudNovedadByNumRadicadoRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetTipoIdentificacionRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetValorParametroConfRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FugetValorTarifaSegunEdadRequest;
+import com.keralty.aereportes.viewmodel.userfunctions.FusubstringTextRequest;
+
+import io.quarkus.arc.Arc;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Query;
 import jakarta.transaction.Transactional;
-import java.sql.Date;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 /**
  * User functions
  */
 @ApplicationScoped
 public class UserFunctions extends AbstractService {
+    
+    @PersistenceContext
+    protected EntityManager em;
     
     @RestClient
     UserFunctionsProxy userFunctionsProxy;
@@ -130,9 +153,17 @@ public class UserFunctions extends AbstractService {
 
         // COMMENTS:
         // Dada una pregunta de un cuestrionario, devuelve una coma lista de los valores posibles para de dicha pregunta
-        FuformarListaValoresPreguntaRequest request = new FuformarListaValoresPreguntaRequest();
-        request.setPfuPreguntaInstance(pfuPregunta);
-        return userFunctionsProxy.fuformarListaValoresPreguntaFun(request);
+		if (pfuPregunta == null || pfuPregunta.isNull())
+			return "";
+
+		StringBuilder result = new StringBuilder();
+		String separator = "";
+		for (Valor valor : pfuPregunta.getValores()) {
+			result.append(separator);
+			result.append(valor.getValorValorPosible());
+			separator = ";";
+		}
+		return result.toString();
     }
 
     public String fuformarListaValoresPreguntaFun(FuformarListaValoresPreguntaRequest request) {
@@ -151,12 +182,22 @@ public class UserFunctions extends AbstractService {
     @Transactional(Transactional.TxType.SUPPORTS)
     public String fuconcatenarConNulosFun(String pfuPrefijo, String pfuString) {
 
-        // COMMENTS:
-        // Función que recibe dos parámetros, un prefijo y un string que admite nulos. Si el segundo parámetro es nulo, devuelve cadena vacía, si no lo es, concatena prefijo y string. 
-        FuconcatenarConNulosRequest request = new FuconcatenarConNulosRequest();
-        request.setPfuPrefijo(pfuPrefijo);
-        request.setPfuString(pfuString);
-        return userFunctionsProxy.fuconcatenarConNulosFun(request);
+    	String textoADevolver = ""; 
+    	try{
+	    	String prefijo = "";
+	    	if (pfuPrefijo != null && !pfuPrefijo.isEmpty())
+	    		prefijo = pfuPrefijo;
+	    	
+	    	String texto = ""; 
+	    	if (pfuString != null && !pfuString.isEmpty())
+	    		texto = pfuString; 
+	    	
+	    	textoADevolver = prefijo + texto; 
+	    	
+    	} catch (Exception e)  {
+    		textoADevolver = "Error ->" + e.getMessage();
+		}
+    	return textoADevolver; 
     }
 
     public String fuconcatenarConNulosFun(FuconcatenarConNulosRequest request) {
@@ -479,9 +520,27 @@ public class UserFunctions extends AbstractService {
 
         // COMMENTS:
         // Devuelve el valor del parámetro de configuración cuyo código recibe como argumento. 
-        FugetValorParametroConfRequest request = new FugetValorParametroConfRequest();
-        request.setPfuCodigo(pfuCodigo);
-        return userFunctionsProxy.fugetValorParametroConfFun(request);
+    	String valor  = null;
+    	try {
+    		String select = "select " + ParamConfigConstants.FLD_PARAMCONFIGVALOR+
+    				" FROM " + ParamConfigConstants.CLASS_NAME +
+    				" WHERE " +
+    				ParamConfigConstants.FLD_PARAMCONFIGCODIGO  + " = ?1 ";
+    		Query query = em.createNativeQuery(select);
+    		query.setParameter(1, pfuCodigo);
+
+    		Object resultado = query.getSingleResult();
+
+    		if (resultado != null) {
+    			valor = resultado.toString() ;
+    		}    				
+    	} catch (NoResultException e)  {
+    		valor = null;
+    	} catch (Exception e)  {
+    		LoggerFactory.getLogger(this.getClass()).error("Error en fugetValorParametroConfFun: " + e.getMessage());
+    		valor = null;
+    	}
+    	return valor;  
     }
 
     public String fugetValorParametroConfFun(FugetValorParametroConfRequest request) {
@@ -1198,9 +1257,99 @@ public class UserFunctions extends AbstractService {
         //         Las observaciones deben ser:
         //         Usuario1: Traer la EPS que se diligencio / indicar fecha de antigüedad/ Parentesco
         //         
-        FuFormarTextoObservacionesRequest request = new FuFormarTextoObservacionesRequest();
-        request.setPfSolicitudInstance(pfSolicitud);
-        return userFunctionsProxy.fuFormarTextoObservacionesFun(request);
+    	StringBuilder resultado = new StringBuilder();
+    	
+    	
+    	if (pfSolicitud != null && !pfSolicitud.isNull()){
+    		
+    		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+    		String stringTemp = "";
+			try {
+	    		// Grupo asociado
+				if (pfSolicitud.getSolicitudTramite() == 1L){
+					stringTemp = pfSolicitud.getSolicituddrvGrupoAsociado();
+		    		if (stringTemp != null && !stringTemp.isEmpty()){
+		    			resultado.append("Grupo asociado ");
+		    			resultado.append(stringTemp);
+		    		}
+				}
+	    		// Traslado
+	    		if (pfSolicitud.getSolicitudEsTraslado()){
+	    			if (resultado.length() > 0){
+	    				resultado.append(", ");
+	    			}
+	    			resultado.append("Viene de traslado");
+	    		}
+	    		
+	    		// Usuarios
+				String textoUsuario = "";
+	    		for(Usuario usu : pfSolicitud.getUsuarios()){
+	    			
+	    			// Usuario1: Traer la EPS que se diligencio / indicar fecha de antigüedad/ Parentesco
+
+	    			textoUsuario = "Usuario " + usu.getUsuariodrvIdentificacion() + ":";
+	    			if (usu.getEps() != null && !usu.getEps().isNull()) {
+	    				textoUsuario += " EPS: " + usu.getEps().getEpsDescripcion(); 
+	    			}
+	    			if (usu.getUsuarioFechaAntiguedadBeneficiario() != null) {
+	    				textoUsuario += " / F. Ant: " + dateFormat.format(usu.getUsuarioFechaAntiguedadBeneficiario()); 
+	    			}
+	    			if (usu.getParentesco() != null && !usu.getParentesco().isNull()) {
+	    				textoUsuario += " / " + usu.getParentesco().getParentescoDescripcion(); 
+	    			}
+	    			
+	    			if (resultado.length() > 0){
+	    				resultado.append(", ");
+	    			}
+	    			
+	    			resultado.append(textoUsuario);
+	    		}
+
+	    		
+	    		// El texto que deberá aparecer en observaciones es: “Nuevo grupo asociado xxx”
+//	    		GdC-14:Req. 16: Modificación del grupo asociado en inclusiones
+//	    		Esta modificación se debe ver reflejada en observaciones de la solicitud (se debe ver el nuevo código de grupo asociado).
+//	    		En este nos guardaremos el código del grupo original, el recuperado del CORE
+//	    		Si toma valor NULL, significa que NO ha sido modificado el Grupo
+//	    		Si toma valor -1, significa que NO tenía grupo asociado
+//	    		Si toma cualquier otro valor, es el código del grupo original
+	    		stringTemp = "";
+	    		if (pfSolicitud.getSolicitudGrupoDelCORE() != null){
+	    			if (pfSolicitud.getGrupoAsociado() != null && !pfSolicitud.getGrupoAsociado().isNull()) {
+		    			if (pfSolicitud.getGrupoAsociado().getGrupoAsociadoCodigo() != pfSolicitud.getSolicitudGrupoDelCORE()) {
+		    				stringTemp = "Nuevo grupo asociado " + pfSolicitud.getGrupoAsociado().getGrupoAsociadoCodigoLegal();
+		    			}
+	    				
+	    			} else {
+	    				stringTemp = "Nuevo grupo asociado 'ninguno'";
+	    			}
+	    		}
+	    		
+	    		if (!stringTemp.isEmpty()){
+	    			if (resultado.length() > 0){
+	    				resultado.append("\n");
+	    			}
+    				resultado.append(stringTemp);
+	    		}
+	    		
+	    		
+	    		
+	            // GdC-14: Req. 13: Prorrateo. Debe aparecer en Observaciones
+	            if (pfSolicitud.getSolicitudPorcentajeProrrateo() != null && pfSolicitud.getSolicitudPorcentajeProrrateo() > 0) {
+	    			if (resultado.length() > 0){
+	    				resultado.append("\n");
+	    			}
+    				resultado.append("Prorrateo: " + pfSolicitud.getSolicitudPorcentajeProrrateo().toString() + "%");
+	            }
+	    		
+			} catch (Exception e) {
+        		org.slf4j.LoggerFactory.getLogger(this.getClass().getName()).error("fuFormarTextoObservacionesFun\n" + e.getMessage());
+			}
+    		
+    	}
+    	
+    	
+    	return resultado.toString();
     }
 
     public String fuFormarTextoObservacionesFun(FuFormarTextoObservacionesRequest request) {
@@ -1271,9 +1420,31 @@ public class UserFunctions extends AbstractService {
 
         // COMMENTS:
         // Devuelve el nombre completo del asesor que tenga como usuario el recibido y no sea de agencia (no sea manual)
-        FuGetNombreAsesorRequest request = new FuGetNombreAsesorRequest();
-        request.setPfUsuario(pfUsuario);
-        return userFunctionsProxy.fuGetNombreAsesorFun(request);
+    	try {
+	    	SQLPopulation query = new SQLPopulation(AsesorConstants.CLASS_NAME);
+	
+	        SQLWhereConjunction conjunction = new SQLWhereConjunction();
+	
+	        // '=' Comparison
+	        SQLWhereComparison comparison = new SQLWhereComparison(query);
+	        comparison.setOperator("=");
+	        
+	        SQLWhereOperandPathAttribute operand1= new SQLWhereOperandPathAttribute(AsesorConstants.ATTR_NAME_FUNCIONARIOUSUARIO , Constants.Type.STRING.getTypeName());
+	        comparison.setFirstOperand(operand1);
+	        
+	        comparison.setSecondOperand(new SQLWhereOperandLiteral(pfUsuario, Constants.Type.STRING.getTypeName()));
+	        conjunction.addOperand(comparison);
+	
+	        query.addConjunction(conjunction);
+	    	
+			List<Asesor> lista = Arc.container().select(AsesorJpaRepository.class).get().solveQuery(query);
+			if (lista != null && !lista.isEmpty()) {
+				return lista.get(0).getFuncionariodrvNombreCompleto();						
+			}
+    	} catch(Exception e) {
+    		LoggerFactory.getLogger(this.getClass()).error("Error en fuGetNombreAsesorFun: " + e.getMessage());
+    	}
+    	return null;
     }
 
     public String fuGetNombreAsesorFun(FuGetNombreAsesorRequest request) {
@@ -1292,9 +1463,31 @@ public class UserFunctions extends AbstractService {
 
         // COMMENTS:
         // Devuelve el nombre completo del funcionaio que tenga como usuario el recibido y no sea de agencia (no sea manual)
-        FuGetNombreFuncionarioRequest request = new FuGetNombreFuncionarioRequest();
-        request.setPfUsuario(pfUsuario);
-        return userFunctionsProxy.fuGetNombreFuncionarioFun(request);
+    	try {
+	    	SQLPopulation query = new SQLPopulation(FuncionarioConstants.CLASS_NAME);
+	
+	        SQLWhereConjunction conjunction = new SQLWhereConjunction();
+	
+	        // '=' Comparison
+	        SQLWhereComparison comparison = new SQLWhereComparison(query);
+	        comparison.setOperator("=");
+	        
+	        SQLWhereOperandPathAttribute operand1= new SQLWhereOperandPathAttribute(FuncionarioConstants.ATTR_NAME_FUNCIONARIOUSUARIO , Constants.Type.STRING.getTypeName());
+	        comparison.setFirstOperand(operand1);
+	        
+	        comparison.setSecondOperand(new SQLWhereOperandLiteral(pfUsuario, Constants.Type.STRING.getTypeName()));
+	        conjunction.addOperand(comparison);
+	
+	        query.addConjunction(conjunction);
+	    	
+			List<Funcionario> lista = Arc.container().select(FuncionarioJpaRepository.class).get().solveQuery(query);
+			if (lista != null && !lista.isEmpty()) {
+				return lista.get(0).getFuncionariodrvNombreCompleto();						
+			}
+    	} catch(Exception e) {
+    		LoggerFactory.getLogger(this.getClass()).error("Error en fuGetNombreFuncionarioFun: " + e.getMessage());
+    	}
+    	return null;
     }
 
     public String fuGetNombreFuncionarioFun(FuGetNombreFuncionarioRequest request) {
@@ -1407,11 +1600,69 @@ public class UserFunctions extends AbstractService {
      */
     @Transactional(Transactional.TxType.SUPPORTS)
     public byte[] fuGenerarReporteOracleFun(String pfNombreReporte, String pfUsuario, String pfParametros) {
-        FuGenerarReporteOracleRequest request = new FuGenerarReporteOracleRequest();
-        request.setPfNombreReporte(pfNombreReporte);
-        request.setPfUsuario(pfUsuario);
-        request.setPfParametros(pfParametros);
-        return userFunctionsProxy.fuGenerarReporteOracleFun(request);
+
+    	// AÃ±adimos el usuario como primer parÃ¡metro de la funciÃ³n
+    	StringBuilder parametros = new StringBuilder(pfUsuario);
+    	if (pfParametros != null && !pfParametros.isEmpty()) {
+    		parametros.append(";" + pfParametros);
+    	}
+    	
+    	
+    	byte[] thedata = "".getBytes();
+
+    	StringBuilder textoParametros = new StringBuilder("");
+    	String[] paramArray = new String[0];
+    	// (?1, ?2)
+    	if (parametros != null && parametros.length() > 0) {
+    		paramArray = parametros.toString().split(";");
+    		int cont = 1;
+    		for (String param : paramArray) {
+    			if (!textoParametros.isEmpty()) {
+    				textoParametros.append(", ");
+    			}
+    			textoParametros.append("?" + Integer.toString(cont));
+    			cont++;
+			}
+    		
+    	}
+    	textoParametros.insert(0, "(");
+    	textoParametros.append(")");
+    	try {
+
+    		// Llamada a una funciÃ³n de Oracle
+    		String storedProcedure = "select " + pfNombreReporte + textoParametros.toString() + " from dual";
+    		Query query = em.createNativeQuery(storedProcedure);
+    		
+    		int cont = 1;
+    		for (String param : paramArray) {
+        		query.setParameter(cont, param);
+        		cont++;
+			}
+    		
+    		Object resultado = query.getSingleResult();
+
+    		if (resultado != null){
+    			java.sql.Clob elClob = ((java.sql.Clob)resultado);
+
+    			thedata = new byte[(int)elClob.length()];
+    			InputStream is=elClob.getAsciiStream(); 
+    			// Leemos por bloques
+    			int pos = 0;
+    			int leidos = 0;
+    			do {
+    				leidos = is.read(thedata, pos, 1024);
+    				pos += leidos;
+    			}
+    			while (leidos == 1024);
+    				
+
+    		}
+    	} catch (SQLException | IOException e) {
+    		org.slf4j.LoggerFactory.getLogger("UserFunctions").error(e.getMessage());
+    		thedata = e.getMessage().getBytes();
+    	}
+
+    	return thedata;    	
     }
 
     public byte[] fuGenerarReporteOracleFun(FuGenerarReporteOracleRequest request) {

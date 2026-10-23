@@ -123,7 +123,8 @@ public class SolicitudNovedadService extends AbstractService {
     }
 
     public List<Map<String, Object>> solveQuery(QueryRequest request) {
-        return solveGenericQuery(request, SolicitudNovedadConstants.CLASS_NAME);
+        //return solveGenericQuery(request, SolicitudNovedadConstants.CLASS_NAME);
+        return null;
     }
 
     private List<SolicitudNovedad> solveSolicitudNovedadTypedQuery(QueryRequest request) {
@@ -1626,7 +1627,8 @@ public class SolicitudNovedadService extends AbstractService {
         response.setInstanceSuppInfo(instance.buildICSolicitudNovedad());
 
         // Value expressions for outgoing argument 'solicitudNovedadgetRutaPlantillaoaRuta'
-        // DEFAULT  : GETONE(PlanT.ProductoT.Dominios.ReportesDominio.drvRuta)  WHERE         //            (PlanT.ProductoT.Dominios.ReportesDominio.Dominio.PlanT = PlanT AND PlanT.ProductoT.Dominios.ReportesDominio.PlantillaReporte.Tipo = 12 AND PlanT.ProductoT.Dominios.ReportesDominio.PlantillaReporte.FechaVigencia <= FechaCreacion AND PlanT.ProductoT.Dominios.ReportesDominio.drvFechaHasta > FechaCreacion)
+        // DEFAULT  : GETONE(PlanT.ProductoT.Dominios.ReportesDominio.drvRuta)  WHERE 
+        //            (PlanT.ProductoT.Dominios.ReportesDominio.Dominio.PlanT = PlanT AND PlanT.ProductoT.Dominios.ReportesDominio.PlantillaReporte.Tipo = 12 AND PlanT.ProductoT.Dominios.ReportesDominio.PlantillaReporte.FechaVigencia <= FechaCreacion AND PlanT.ProductoT.Dominios.ReportesDominio.drvFechaHasta > FechaCreacion)
         response.setSolicitudNovedadgetRutaPlantillaoaRuta(repository.assocOperator027(solicitudNovedadgetRutaPlantillapthisSolicitudNovedad));
 
 

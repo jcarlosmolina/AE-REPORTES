@@ -61,7 +61,8 @@ public class ReportesProcAlmService extends AbstractService {
     }
 
     public List<Map<String, Object>> solveQuery(QueryRequest request) {
-        return solveGenericQuery(request, ReportesProcAlmConstants.CLASS_NAME);
+        //return solveGenericQuery(request, ReportesProcAlmConstants.CLASS_NAME);
+    	return null;
     }
 
     private List<ReportesProcAlm> solveReportesProcAlmTypedQuery(QueryRequest request) {

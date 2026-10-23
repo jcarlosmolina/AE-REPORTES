@@ -182,7 +182,8 @@ public class SolicitudService extends AbstractService {
     }
 
     public List<Map<String, Object>> solveQuery(QueryRequest request) {
-        return solveGenericQuery(request, SolicitudConstants.CLASS_NAME);
+        // return solveGenericQuery(request, SolicitudConstants.CLASS_NAME);
+        return null;
     }
 
     private List<Solicitud> solveSolicitudTypedQuery(QueryRequest request) {

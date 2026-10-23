@@ -6,6 +6,31 @@ import com.keralty.aereportes.global.UserFunctions;
 import com.keralty.aereportes.persistence.oid.ReportesProcAlmOid;
 import com.keralty.aereportes.persistence.ReportesProcAlm;
 import com.keralty.aereportes.persistence.Solicitud;
+import com.keralty.aereportes.reports.ReportGenerator;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
+
+import java.security.spec.KeySpec;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import com.keralty.aereportes.persistence.SolicitudNovedad;
 import com.keralty.aereportes.repository.GlobalServicesJpaRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -29,6 +54,29 @@ public class GlobalServicesService extends AbstractService {
 
     GlobalServicesJpaRepository globalServicesRepository;
 
+    ReportGenerator repGen;
+    
+	@ConfigProperty(name="com.keralty.integraciones.reactivacion_contratos.token.url", defaultValue = "")
+	String reactivacion_contratos_token_url;
+	
+	@ConfigProperty(name="com.keralty.integraciones.reactivacion_contratos.token.usr", defaultValue = "")
+	String reactivacion_contratos_token_usr;
+	
+	@ConfigProperty(name="com.keralty.integraciones.reactivacion_contratos.token.pwd", defaultValue = "")
+	String reactivacion_contratos_token_pwd;
+	
+	@ConfigProperty(name="com.keralty.integraciones.reactivacion_contratos.token.hash", defaultValue = "")
+	String reactivacion_contratos_token_hash;
+	
+	@ConfigProperty(name="com.keralty.integraciones.reactivacion_contratos.aeskey", defaultValue = "")
+	String reactivacion_contratos_aeskey;
+	
+	@ConfigProperty(name="com.keralty.integraciones.reactivacion_contratos.aessalt", defaultValue = "")
+	String reactivacion_contratos_aessalt;
+	
+	@ConfigProperty(name="com.keralty.integraciones.reactivacion_contratos.url", defaultValue = "")
+	String reactivacion_contratos_url;
+	
     @Inject
     public GlobalServicesService(
             SolicitudService solicitudSrv,
@@ -36,13 +84,15 @@ public class GlobalServicesService extends AbstractService {
             ReportesProcAlmService reportesProcAlmSrv,
             GlobalServicesJpaRepository globalServicesRepository,
             UserFunctions userFunctionsSrv,
-            GlobalServicesService globalServicesSrv) {
+            GlobalServicesService globalServicesSrv,
+            ReportGenerator repGen) {
         this.solicitudSrv = solicitudSrv;
         this.solicitudNovedadSrv = solicitudNovedadSrv;
         this.reportesProcAlmSrv = reportesProcAlmSrv;
         this.globalServicesRepository = globalServicesRepository;
         this.userFunctionsSrv = userFunctionsSrv;
         this.globalServicesSrv = globalServicesSrv;
+        this.repGen = repGen;
     }
 
     /*
@@ -202,9 +252,31 @@ public class GlobalServicesService extends AbstractService {
             com.keralty.aereportes.viewmodel.solicitudnovedad.siu.GetRutaPlantillaRequest step1Request = new com.keralty.aereportes.viewmodel.solicitudnovedad.siu.GetRutaPlantillaRequest();
             step1Request.setSolicitudNovedadgetRutaPlantillapthisSolicitudNovedadInstance(oGETREPORTSOLNOVptSolicitudNovedad);
             com.keralty.aereportes.viewmodel.solicitudnovedad.siu.GetRutaPlantillaResponse step1Response = solicitudNovedadSrv.getRutaPlantillaTxn(step1Request);
-            response.setOGETREPORTSOLNOVoaRuta(step1Response.getSolicitudNovedadgetRutaPlantillaoaRuta());
-            response.setOGETREPORTSOLNOVoaNombreArchivo(step1Response.getSolicitudNovedadgetRutaPlantillaoaNombreArchivo());
-            response.setOGETREPORTSOLNOVoaArchivo(step1Response.getSolicitudNovedadgetRutaPlantillaoaReporte());
+        // Formamos la ruta completa de la plantilla
+        String rutaParcial = step1Response.getSolicitudNovedadgetRutaPlantillaoaRuta();
+        String prefijo = this.userFunctionsSrv.fugetValorParametroConfFun("PATH_PLANTILLAS_REPORTS_RT");
+        if (prefijo == null || prefijo.isEmpty()) {
+        	prefijo = "CLASSPATH:";
+        }
+        String rutaCompleta = prefijo + rutaParcial;
+        if (!"CLASSPATH:".equalsIgnoreCase(prefijo) && !prefijo.endsWith("/") && !rutaParcial.startsWith("/")) {
+        	rutaCompleta = prefijo + "/" + rutaParcial;
+        }
+        
+        // Invocamos al generador de reportes
+        SolicitudNovedad instancia = request.getOGETREPORTSOLNOVptSolicitudNovedadInstance();
+        byte[] pdf = null;
+        try {
+        	pdf = repGen.generateReport(instancia, rutaCompleta);
+        } catch(Exception e) {
+        	throw new SystemException(e);
+        }        
+
+        
+        
+        response.setOGETREPORTSOLNOVoaRuta(step1Response.getSolicitudNovedadgetRutaPlantillaoaRuta());
+        response.setOGETREPORTSOLNOVoaNombreArchivo(step1Response.getSolicitudNovedadgetRutaPlantillaoaNombreArchivo());
+        response.setOGETREPORTSOLNOVoaArchivo(pdf);
             globalServicesRepository.refreshEntity(oGETREPORTSOLNOVptSolicitudNovedad);
         } catch (Exception e) { }
         return response;
@@ -310,9 +382,29 @@ public class GlobalServicesService extends AbstractService {
             step1Request.setSolicitudTGETPLANTILLAREPORTEpthisSolicitudInstance(oGETREPORTEptSolicitud);
             step1Request.setSolicitudTGETPLANTILLAREPORTEptTipo(oGETREPORTEptTipo);
             com.keralty.aereportes.viewmodel.solicitud.siu.TGETPLANTILLAREPORTEResponse step1Response = solicitudSrv.tGETPLANTILLAREPORTETxn(step1Request);
-            response.setOGETREPORTEoaPlantillaInstance(step1Response.getSolicitudTGETPLANTILLAREPORTEoaPlantillaInstance());
-            response.setOGETREPORTEoaArchivo(step1Response.getSolicitudTGETPLANTILLAREPORTEoaReporte());
-            response.setOGETREPORTEoaNombreArchivo(step1Response.getSolicitudTGETPLANTILLAREPORTEoaNombreArchivo());
+        // Formamos la ruta completa de la plantilla
+        String rutaParcial = step1Response.getSolicitudTGETPLANTILLAREPORTEoaPlantillaInstance().getPlantillaReporte().getPlantillaReporteRutaArchivos();
+        String prefijo = this.userFunctionsSrv.fugetValorParametroConfFun("PATH_PLANTILLAS_REPORTS_RT");
+        if (prefijo == null || prefijo.isEmpty()) {
+        	prefijo = "CLASSPATH:";
+        }
+        String rutaCompleta = prefijo + rutaParcial;
+        if (!"CLASSPATH:".equalsIgnoreCase(prefijo) && !prefijo.endsWith("/") && !rutaParcial.startsWith("/")) {
+        	rutaCompleta = prefijo + "/" + rutaParcial;
+        }
+        
+        // Invocamos al generador de reportes
+        byte[] pdf = null;
+        try {
+        	pdf = repGen.generateReport(oGETREPORTEptSolicitud, rutaCompleta);
+        } catch(Exception e) {
+        	throw new SystemException(e);
+        }
+        
+        response.setOGETREPORTEoaArchivo(pdf);
+        String nombreArchivo = step1Response.getSolicitudTGETPLANTILLAREPORTEoaPlantillaInstance().getPlantillaReporte().getPlantillaReporteNombreArchivoPDF() + 
+        		"_" + oGETREPORTEptSolicitud.getSolicitudNumRadicado().toString() + ".pdf";
+        response.setOGETREPORTEoaNombreArchivo(nombreArchivo);
             globalServicesRepository.refreshEntity(oGETREPORTEptSolicitud);
         } catch (Exception e) { }
         return response;

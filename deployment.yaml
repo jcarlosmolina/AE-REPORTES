@@ -24,7 +24,7 @@ spec:
       containers:
         - name: ae-reportes
 # Replace the placeholder below with the name of your OpenShift namespace/project
-          image: 'image-registry.openshift-image-registry.svc:5000/${YourNamespaceOrProjectNameHere}/ae-reportes:latest'
+          image: 'image-registry.openshift-image-registry.svc:5000/soporte-colsanitas-dev/ae-reportes:latest'
           ports:
             - containerPort: 8083
               protocol: TCP
@@ -92,11 +92,53 @@ spec:
               configMapKeyRef:
                 name: ae-config
                 key: ae-generasolicitud-url
+          - name: quarkus.rest-client.ae-reportsgenerator.url
+            valueFrom:
+              configMapKeyRef:
+                name: ae-config
+                key: ae-reportsgenerator-url
+# Configuracion general de integraciones con servicios de BH
+          - name: com.keralty.integraciones.reactivacion_contratos.url
+            valueFrom:
+              configMapKeyRef:
+                name: ae-config
+                key: integraciones-reactivacion_contratos-url
+          - name: com.keralty.integraciones.reactivacion_contratos.token.url
+            valueFrom:
+              configMapKeyRef:
+                name: ae-config
+                key: integraciones-reactivacion_contratos-token-url
+          - name: com.keralty.integraciones.reactivacion_contratos.token.usr
+            valueFrom:
+              secretKeyRef:
+                name: ae-secret
+                key: integraciones-reactivacion_contratos-token-usr
+          - name: com.keralty.integraciones.reactivacion_contratos.token.pwd
+            valueFrom:
+              secretKeyRef:
+                name: ae-secret
+                key: integraciones-reactivacion_contratos-token-pwd
+          - name: com.keralty.integraciones.reactivacion_contratos.token.hash
+            valueFrom:
+              secretKeyRef:
+                name: ae-secret
+                key: integraciones-reactivacion_contratos-token-hash
+          - name: com.keralty.integraciones.reactivacion_contratos.aeskey
+            valueFrom:
+              secretKeyRef:
+                name: ae-secret
+                key: integraciones-reactivacion_contratos-aeskey
+          - name: com.keralty.integraciones.reactivacion_contratos.aessalt
+            valueFrom:
+              secretKeyRef:
+                name: ae-secret
+                key: integraciones-reactivacion_contratos-aessalt
 # Set the values below according to your preferences to assign resources to this microservice
           resources:
             limits:
-              cpu: '1'
-              memory: 500Mi
+              cpu: 300m
+              memory: 350Mi
             requests:
               cpu: 10m
-              memory: 250Mi
+              memory: 200Mi
+

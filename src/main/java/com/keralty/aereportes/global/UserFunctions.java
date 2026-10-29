@@ -46,7 +46,6 @@ import com.keralty.aereportes.sqlutils.SQLWhereComparison;
 import com.keralty.aereportes.sqlutils.SQLWhereConjunction;
 import com.keralty.aereportes.sqlutils.SQLWhereOperandLiteral;
 import com.keralty.aereportes.sqlutils.SQLWhereOperandPathAttribute;
-import com.keralty.aereportes.viewmodel.userfunctions.FuActualizarPersonaCORERequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuAnadirTextoRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuBuscarDocGestorNumIdRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuBuscarDocGestorSolicitudRequest;
@@ -61,8 +60,6 @@ import com.keralty.aereportes.viewmodel.userfunctions.FuCallSPgetusugrabadornovR
 import com.keralty.aereportes.viewmodel.userfunctions.FuCheckRegimenSubsidiadoRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuContieneCharEspecialRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuContratoExentoDocSolRequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FuCrearPersonaCORERequest;
-import com.keralty.aereportes.viewmodel.userfunctions.FuCrearZipDocumentacionAutoRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuEnviarEmailDevDocRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuEnviarEmailRequest;
 import com.keralty.aereportes.viewmodel.userfunctions.FuEnviarSMSRequest;
@@ -1083,78 +1080,6 @@ public class UserFunctions extends AbstractService {
     }
 
     /** 
-     * Method that solves the fuCrearPersonaCORE user function.
-     *
-     * @param pfPersona This parameter represents the pfPersona inbound argument.
-     *
-     * @param pfProtDatos This parameter represents the pfProtDatos inbound argument.
-     *
-     * @return Return String value of the User Function
-     */
-    @Transactional(Transactional.TxType.SUPPORTS)
-    public String fuCrearPersonaCOREFun(Persona pfPersona, ProteccionDatos pfProtDatos) {
-
-        // COMMENTS:
-        // Invoca al WS que crea una persona en el CORE
-        FuCrearPersonaCORERequest request = new FuCrearPersonaCORERequest();
-        request.setPfPersonaInstance(pfPersona);
-        request.setPfProtDatosInstance(pfProtDatos);
-        return userFunctionsProxy.fuCrearPersonaCOREFun(request);
-    }
-
-    public String fuCrearPersonaCOREFun(FuCrearPersonaCORERequest request) {
-        return fuCrearPersonaCOREFun(request.getPfPersonaInstance(), request.getPfProtDatosInstance());
-    }
-
-    /** 
-     * Method that solves the fuActualizarPersonaCORE user function.
-     *
-     * @param pfPersona This parameter represents the pfPersona inbound argument.
-     *
-     * @param pfProtDatos This parameter represents the pfProtDatos inbound argument.
-     *
-     * @param pfNumSolicitud GdC 37: El número de solicitud en el marco de la cual llamamos a esta fu, para hacer log.
-     *
-     * @return Return String value of the User Function
-     */
-    @Transactional(Transactional.TxType.SUPPORTS)
-    public String fuActualizarPersonaCOREFun(Persona pfPersona, ProteccionDatos pfProtDatos, String pfNumSolicitud) {
-
-        // COMMENTS:
-        // Invoca al WS que actualiza una persona en el CORE
-        FuActualizarPersonaCORERequest request = new FuActualizarPersonaCORERequest();
-        request.setPfPersonaInstance(pfPersona);
-        request.setPfProtDatosInstance(pfProtDatos);
-        request.setPfNumSolicitud(pfNumSolicitud);
-        return userFunctionsProxy.fuActualizarPersonaCOREFun(request);
-    }
-
-    public String fuActualizarPersonaCOREFun(FuActualizarPersonaCORERequest request) {
-        return fuActualizarPersonaCOREFun(request.getPfPersonaInstance(), request.getPfProtDatosInstance(), request.getPfNumSolicitud());
-    }
-
-    /** 
-     * Method that solves the fuCrearZipDocumentacionAuto user function.
-     *
-     * @param psSolicitud This parameter represents the psSolicitud inbound argument.
-     *
-     * @return Return String value of the User Function
-     */
-    @Transactional(Transactional.TxType.SUPPORTS)
-    public String fuCrearZipDocumentacionAutoFun(Solicitud psSolicitud) {
-
-        // COMMENTS:
-        // Genera los documentos que corresponda para la solictud (los que tengan que enviarse de forma automática) y los empaqueta en un zip. Devuelve el path y nombre del zip
-        FuCrearZipDocumentacionAutoRequest request = new FuCrearZipDocumentacionAutoRequest();
-        request.setPsSolicitudInstance(psSolicitud);
-        return userFunctionsProxy.fuCrearZipDocumentacionAutoFun(request);
-    }
-
-    public String fuCrearZipDocumentacionAutoFun(FuCrearZipDocumentacionAutoRequest request) {
-        return fuCrearZipDocumentacionAutoFun(request.getPsSolicitudInstance());
-    }
-
-    /** 
      * Method that solves the fuGetCodTarifaProdPlanAnyo user function.
      *
      * @param pfProducto This parameter represents the pfProducto inbound argument.
@@ -1625,10 +1550,7 @@ public class UserFunctions extends AbstractService {
     	try {
 
     		// Llamada a una funcion de Oracle
-    		
-    		String nombreProcAlm = this.getNombreProcAlm(pfNombreReporte);
-    		
-    		String storedProcedure = "select " + nombreProcAlm + textoParametros.toString() + " from dual";
+    		String storedProcedure = "select " + pfNombreReporte + textoParametros.toString() + " from dual";
     		Query query = em.createNativeQuery(storedProcedure);
     		
     		int cont = 1;
@@ -1656,37 +1578,11 @@ public class UserFunctions extends AbstractService {
 
     		}
     	} catch (SQLException | IOException e) {
-    		org.slf4j.LoggerFactory.getLogger(this.getClass().getName()).error(e.getMessage());
+    		org.slf4j.LoggerFactory.getLogger("UserFunctions").error(e.getMessage());
     		thedata = e.getMessage().getBytes();
     	}
 
     	return thedata;    	
-    }
-    
-    private String getNombreProcAlm(String candidato) {
-        // COMMENTS:
-        // Devuelve el valor del procedimiento almacenado que coincida con "candidato" 
-    	String valor  = null;
-    	try {
-    		String select = "SELECT " + ReportesProcAlmConstants.FLD_REPORTESPROCALMNOMBREPROC +
-    				" FROM " + ReportesProcAlmConstants.TBL_NAME +
-    				" WHERE " +
-    				ReportesProcAlmConstants.FLD_REPORTESPROCALMNOMBREPROC  + " = ?1 ";
-    		Query query = em.createNativeQuery(select);
-    		query.setParameter(1, candidato);
-
-    		Object resultado = query.getSingleResult();
-
-    		if (resultado != null) {
-    			valor = resultado.toString() ;
-    		}    				
-    	} catch (NoResultException e)  {
-    		valor = "";
-    	} catch (Exception e)  {
-    		LoggerFactory.getLogger(this.getClass().getName()).error("Error en getNombreProcAlm: " + e.getMessage());
-    		valor = "";
-    	}
-    	return valor;  
     }
 
     public byte[] fuGenerarReporteOracleFun(FuGenerarReporteOracleRequest request) {

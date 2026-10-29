@@ -1625,7 +1625,10 @@ public class UserFunctions extends AbstractService {
     	try {
 
     		// Llamada a una funcion de Oracle
-    		String storedProcedure = "select " + pfNombreReporte + textoParametros.toString() + " from dual";
+    		
+    		String nombreProcAlm = this.getNombreProcAlm(pfNombreReporte);
+    		
+    		String storedProcedure = "select " + nombreProcAlm + textoParametros.toString() + " from dual";
     		Query query = em.createNativeQuery(storedProcedure);
     		
     		int cont = 1;
@@ -1653,11 +1656,37 @@ public class UserFunctions extends AbstractService {
 
     		}
     	} catch (SQLException | IOException e) {
-    		org.slf4j.LoggerFactory.getLogger("UserFunctions").error(e.getMessage());
+    		org.slf4j.LoggerFactory.getLogger(this.getClass().getName()).error(e.getMessage());
     		thedata = e.getMessage().getBytes();
     	}
 
     	return thedata;    	
+    }
+    
+    private String getNombreProcAlm(String candidato) {
+        // COMMENTS:
+        // Devuelve el valor del procedimiento almacenado que coincida con "candidato" 
+    	String valor  = null;
+    	try {
+    		String select = "SELECT " + ReportesProcAlmConstants.FLD_REPORTESPROCALMNOMBREPROC +
+    				" FROM " + ReportesProcAlmConstants.TBL_NAME +
+    				" WHERE " +
+    				ReportesProcAlmConstants.FLD_REPORTESPROCALMNOMBREPROC  + " = ?1 ";
+    		Query query = em.createNativeQuery(select);
+    		query.setParameter(1, candidato);
+
+    		Object resultado = query.getSingleResult();
+
+    		if (resultado != null) {
+    			valor = resultado.toString() ;
+    		}    				
+    	} catch (NoResultException e)  {
+    		valor = "";
+    	} catch (Exception e)  {
+    		LoggerFactory.getLogger(this.getClass().getName()).error("Error en getNombreProcAlm: " + e.getMessage());
+    		valor = "";
+    	}
+    	return valor;  
     }
 
     public byte[] fuGenerarReporteOracleFun(FuGenerarReporteOracleRequest request) {
